@@ -402,6 +402,7 @@ AS_IF([test x"$GCC" = "xyes"], [
 	CFLAGS="$CFLAGS -Wall -std=gnu11"
 	CXXFLAGS="$CXXFLAGS -Wall " # -Weffc++" # TODO: enable when it does not print 1MB of warnings
 ])
+CFLAGS="$CFLAGS -Wno-deprecated"
 CFLAGS="$CFLAGS -D_GNU_SOURCE"
 CXXFLAGS="$CXXFLAGS -D_GNU_SOURCE -DPOINTERHOLDER_TRANSITION=0"
 #                                   ^^ Silence deprecation warnings of QPDF 11
