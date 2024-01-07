@@ -11,8 +11,10 @@
 // information.
 //
 
-#include "config.h"
-#include "filter.h"
+#include <config.h>
+
+#include <cupsfilters/filter.h>
+#include <cupsfilters/libcups2-private.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -59,7 +61,8 @@ cfFilterUniversal(int inputfd,		// I - File descriptor input stream
   final_output = data->final_content_type;
   if (final_output == NULL)
   {
-    final_output = universal_parameters->actual_output_type;
+    final_output = (universal_parameters ?
+		    universal_parameters->actual_output_type : NULL);
     if (final_output == NULL)
     {
       if (log) log(ld, CF_LOGLEVEL_ERROR,
@@ -68,7 +71,7 @@ cfFilterUniversal(int inputfd,		// I - File descriptor input stream
     }
   }
 
-  if (universal_parameters->actual_output_type)
+  if (universal_parameters && universal_parameters->actual_output_type)
     strncpy(output, universal_parameters->actual_output_type,
 	    sizeof(output) - 1);
   else
@@ -84,7 +87,7 @@ cfFilterUniversal(int inputfd,		// I - File descriptor input stream
   sscanf(output, "%15[^/]/%255s", output_super, output_type);
 
   cups_array_t *filter_chain;
-  filter_chain = cupsArrayNew(NULL, NULL);
+  filter_chain = cupsArrayNew(NULL, NULL, NULL, 0, NULL, NULL);
 
   if (!strcasecmp(input_super, "image") && strcasecmp(input_type, "urf") &&
       strcasecmp(input_type, "pwg-raster"))
@@ -151,7 +154,7 @@ cfFilterUniversal(int inputfd,		// I - File descriptor input stream
   else
   {
 #ifdef HAVE_GHOSTSCRIPT
-    if (!strcasecmp(input, "application/postscript"))
+    if (!strcasecmp(input, "application/postscript") || !strcasecmp(input, "application/vnd.cups-postscript"))
     {
       outformat = malloc(sizeof(cf_filter_out_format_t));
       *outformat = CF_FILTER_OUT_FORMAT_PDF;
@@ -168,10 +171,14 @@ cfFilterUniversal(int inputfd,		// I - File descriptor input stream
     if (!strcasecmp(input_super, "text") ||
 	(!strcasecmp(input_super, "application") && input_type[0] == 'x'))
     {
+      cf_filter_texttopdf_parameter_t* tparameters = NULL;
       filter = malloc(sizeof(cf_filter_filter_in_chain_t));
-      cf_filter_texttopdf_parameter_t* tparameters =
-	(cf_filter_texttopdf_parameter_t *) malloc(sizeof(cf_filter_texttopdf_parameter_t));
-      *tparameters = universal_parameters->texttopdf_params;
+      if (universal_parameters)
+      {
+	tparameters =
+	  (cf_filter_texttopdf_parameter_t *)malloc(sizeof(cf_filter_texttopdf_parameter_t));
+	*tparameters = universal_parameters->texttopdf_params;
+      }
       filter->function = cfFilterTextToPDF;
       filter->parameters = tparameters;
       filter->name = "texttopdf";
@@ -222,7 +229,9 @@ cfFilterUniversal(int inputfd,		// I - File descriptor input stream
       filter = malloc(sizeof(cf_filter_filter_in_chain_t));
       filter->function = cfFilterBannerToPDF;
       filter->parameters =
-	strdup(universal_parameters->bannertopdf_template_dir);
+	(universal_parameters &&
+	 universal_parameters->bannertopdf_template_dir ?
+	 strdup(universal_parameters->bannertopdf_template_dir) : NULL);
       filter->name = "bannertopdf";
       cupsArrayAdd(filter_chain, filter);
       if (log) log(ld, CF_LOGLEVEL_DEBUG,
@@ -244,7 +253,10 @@ cfFilterUniversal(int inputfd,		// I - File descriptor input stream
   {
     if (strcasecmp(output_type, "pdf"))
     {
-      if (strcasecmp(input_type, "vnd.cups-pdf"))
+      if (strcasecmp(input_type, "vnd.cups-pdf") &&
+	  (strcasecmp(input_super, "image") ||
+	   !strcasecmp(input_type, "urf") ||
+	   !strcasecmp(input_type, "pwg-raster")))
       {
 	filter = malloc(sizeof(cf_filter_filter_in_chain_t));
 	filter->function = cfFilterPDFToPDF;
@@ -330,10 +342,10 @@ cfFilterUniversal(int inputfd,		// I - File descriptor input stream
     // Do the dirty work ...
     ret = cfFilterChain(inputfd, outputfd, inputseekable, data, filter_chain);
 
-  for (filter = (cf_filter_filter_in_chain_t *)cupsArrayFirst(filter_chain);
+  for (filter = (cf_filter_filter_in_chain_t *)cupsArrayGetFirst(filter_chain);
        filter; filter = next)
   {
-    next = (cf_filter_filter_in_chain_t *)cupsArrayNext(filter_chain);
+    next = (cf_filter_filter_in_chain_t *)cupsArrayGetNext(filter_chain);
     free(filter->parameters);
     free(filter);
   }

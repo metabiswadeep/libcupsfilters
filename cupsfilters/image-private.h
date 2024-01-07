@@ -18,7 +18,9 @@
 //
 
 #  include <config.h>
-#  include "image.h"
+
+#  include <cupsfilters/image.h>
+#  include <cupsfilters/libcups2-private.h>
 #  include <cups/cups.h>
 #  define DEBUG_printf(x)
 #  define DEBUG_puts(x)
@@ -137,7 +139,8 @@ struct cf_izoom_s			// **** Image zoom data ****
 			ystep,		// Amount to step for each pixel along
 					// Y
 			yincr,
-			row;		// Current row
+			row,		// Current row
+			yflip;		// Y backwards/upside-down
   cf_ib_t		*rows[2],	// Horizontally scaled pixel data
 			*in;		// Unscaled input pixel data
 };

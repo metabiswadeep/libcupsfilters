@@ -1,4 +1,4 @@
-# OpenPrinting libcupsfilters v2.0b3 - 2023-01-31
+# OpenPrinting libcupsfilters v2.0.0 - 2023-09-22
 
 Looking for compile instructions? Read the file "INSTALL"
 instead...
